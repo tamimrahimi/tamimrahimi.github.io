@@ -8,11 +8,49 @@
                 position: absolute;
             }
         </style>
-        
+        <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBeXZM48k1_9vqyoFNzC1bjVm_rWUVQ370">
+        </script>
     </head>
     <body>
         <div id="avails_map_new"></div>
     </body>
     
-   
+    <script>
+       
+            var _map = null;
+            var _markerinfowindow;
+            
+            var myOptions = {
+                zoom: 5,
+                center: {lat: -34.397, lng: 150.644},
+                zoomControl: true,
+                streetViewControl: true,
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+                fullscreenControl: true,
+                fullscreenControlOptions: {
+                    position: google.maps.ControlPosition.LEFT_TOP
+                }
+            };
+    
+            var div = document.getElementById('avails_map_new');
+            _map = new google.maps.Map(div, myOptions);
+    
+            var clearControlDiv = document.createElement('div');
+            clearControlDiv.setAttribute("id", "clearSearch");
+            var radiusControlDiv = document.createElement('div');
+            radiusControlDiv.setAttribute("id", "radiusControl");
+    
+            clearControlDiv.index = 1;
+            _map.controls[google.maps.ControlPosition.RIGHT_TOP].push(clearControlDiv);
+    
+            radiusControlDiv.index = 1;
+            _map.controls[google.maps.ControlPosition.TOP_RIGHT].push(radiusControlDiv);
+    
+            _markerinfowindow = new google.maps.InfoWindow({
+                content: '',
+                width: 300,
+                height: 200
+            });
+      
+    </script>
 </html>
