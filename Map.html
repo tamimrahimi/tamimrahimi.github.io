@@ -1,1 +1,218 @@
+<html lang="en">
+    <head>
+        <style>
+            #avails_map_new
+            {
+                height: 99%;
+                width: 99%;
+                position: absolute;
+            }
+        </style>
+        <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBeXZM48k1_9vqyoFNzC1bjVm_rWUVQ370">
+        </script>
+    </head>
+    <body>
+        <div id="avails_map_new"></div>
+    </body>
+    <script>
+        window.addEventListener('message', (event) => {
+            var latLong = JSON.parse(event.data.jsonLatLng)
+            initializeMap(latLong);
+            
+        });
+        
+        function initializeMap(latLong) {
+            var _map = null;
+            var _markerinfowindow;
+            var myOptions = {
+                zoom: 5,
+                center: latLong,
+                zoomControl: true,
+                streetViewControl: true,
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+                fullscreenControl: true,
+                fullscreenControlOptions: {
+                    position: google.maps.ControlPosition.LEFT_TOP
+                }
+            };
+    
+            var div = document.getElementById('avails_map_new');
+            _map = new google.maps.Map(div, myOptions);
 
+            var clearControlDiv = document.createElement('div');
+            clearControlDiv.setAttribute("id", "clearSearch");
+            var radiusControlDiv = document.createElement('div');
+            radiusControlDiv.setAttribute("id", "radiusControl");
+            
+            clearControlDiv.index = 1;
+            _map.controls[google.maps.ControlPosition.RIGHT_TOP].push(clearControlDiv);
+
+            radiusControlDiv.index = 1;
+            _map.controls[google.maps.ControlPosition.TOP_RIGHT].push(radiusControlDiv);
+
+            _markerinfowindow = new google.maps.InfoWindow({
+                content: '',
+                width: 300,
+                height: 200
+            });
+
+            google.maps.event.addListener(_markerinfowindow, 'closeclick', function () {
+                _siteID = null;
+            });
+
+            google.maps.event.addListener(_map, 'mousedown', function () {
+                toggleMarker();
+                $('#avails_map_list table tr').removeClass('hover');
+            });
+            
+            const jsonMap = JSON.stringify(_map, refReplacer());
+            window.postMessage({jsonMap}, "*");
+        }
+
+        function refReplacer() {
+            let m = new Map(), v= new Map(), init = null;
+
+            // in TypeScript add "this: any" param to avoid compliation errors - as follows
+            //    return function (this: any, field: any, value: any) {
+            return function(field, value) {
+                let p= m.get(this) + (Array.isArray(this) ? `[${field}]` : '.' + field);
+                let isComplex= value===Object(value)
+
+                if (isComplex) m.set(value, p);
+
+                let pp = v.get(value)||'';
+                let path = p.replace(/undefined\.\.?/,'');
+                let val = pp ? `#REF:${pp[0]=='[' ? '$':'$.'}${pp}` : value;
+
+                !init ? (init=value) : (val===init ? val="#REF:$" : 0);
+                if(!pp && isComplex) v.set(value, path);
+
+                return val;
+            }
+        }
+
+        function toggleMarker(marker) {
+            $.map(_mapMarkers, function (val) {
+                if (val.getAnimation() != null)
+                    val.setAnimation(null);
+            });
+            if (!isUndefined(marker))
+                marker.setAnimation(google.maps.Animation.BOUNCE);
+        }
+        function createCustomElement(type, attributes, title, parent, text) {
+            var element = document.createElement(type);
+            for (var property in attributes) {
+                if (attributes.hasOwnProperty(property)) {
+                    element.setAttribute(property, attributes[property]);
+                }
+            }
+            if (title != '') element.title = title;
+            if (!(text === '')) {
+                if ((typeof text) == 'string') {
+                    element.innerHTML = text;
+                } else {
+                    element.value = text;
+                }
+            }
+            parent.appendChild(element);
+            return element;
+        }
+        function clearSearchMarkers(markers) {
+            if (!markers.empty) {
+                markers.forEach(function (marker) {
+                    marker.setMap(null);
+                });
+                markers.length = 0;
+            }
+        }
+
+        function clearCircles(circles) {
+            if (!circles.empty) {
+                circles.forEach(function (circle) {
+                    circle.setMap(null);
+                });
+                circles.length = 0;
+            }
+        }
+        
+        function updateCircles(circles){
+            var incrementInput = document.getElementById('radiusIncrement');
+
+            clearCircles(circles);
+
+            if (!markers.empty) {
+                markers.forEach(function (marker) {
+
+                    circles.push(new google.maps.Circle({
+                        strokeColor: '#00ff00',
+                        strokeOpacity: 0.8,
+                        strokeWeight: 2,
+                        fillColor: '#00ff00',
+                        fillOpacity: 0.35,
+                        map: _map,
+                        center: marker.getPosition(),
+                        radius: incrementInput.value * 1000
+                    }));
+                });
+            }
+        }
+        
+        function initAutocompleteSearch() {
+            // Create the search box and link it to the UI element.
+            var input = document.getElementById('pac-input');
+            var searchBox = new google.maps.places.SearchBox(input);
+            _map.controls[google.maps.ControlPosition.TOP_RIGHT].push(input);
+
+
+
+            // Bias the SearchBox results towards current map's viewport.
+            _map.addListener('bounds_changed', function () {
+                searchBox.setBounds(_map.getBounds());
+            });
+
+            // Listen for the event fired when the user selects a prediction and retrieve
+            // more details for that place.
+            searchBox.addListener('places_changed', function () {
+                var places = searchBox.getPlaces();
+
+                if (places.length == 0) {
+                    return;
+                }
+
+                // For each place, get the icon, name and location.
+                var bounds = new google.maps.LatLngBounds();
+                places.forEach(function (place) {
+                    if (!place.geometry) {
+                        console.log("Returned place contains no geometry");
+                        return;
+                    }
+                    var icon = {
+                        url: place.icon,
+                        size: new google.maps.Size(71, 71),
+                        origin: new google.maps.Point(0, 0),
+                        anchor: new google.maps.Point(17, 34),
+                        scaledSize: new google.maps.Size(25, 25)
+                    };
+
+                    // Create a marker for each place.
+                    markers.push(new google.maps.Marker({
+                        map: _map,
+                        icon: icon,
+                        title: place.name,
+                        position: place.geometry.location
+                    }));
+
+                    if (place.geometry.viewport) {
+                        // Only geocodes have viewport.
+                        bounds.union(place.geometry.viewport);
+                    } else {
+                        bounds.extend(place.geometry.location);
+                    }
+                });
+                _map.fitBounds(bounds);
+                updateCircles(circles);
+            });
+        }
+
+    </script>
+</html>
