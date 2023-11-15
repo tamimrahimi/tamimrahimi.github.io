@@ -67,7 +67,7 @@
             });
             
             const jsonMap = JSON.stringify(_map, refReplacer());
-            event.source.postMessage({jsonMap}, "*");
+            window.parent.postMessage({jsonMap}, "https://tamimrahimi.github.io/");
         }
 
         function refReplacer() {
