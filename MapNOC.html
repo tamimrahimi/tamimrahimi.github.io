@@ -1,0 +1,90 @@
+<html lang="en">
+    <head>
+        <style>
+            #avails_map_NOC
+            {
+                height: 99%;
+                width: 99%;
+                position: absolute;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="avails_map_NOC"></div>
+        
+        <script>
+            var _map = null;
+            var _mapMarkers = [];
+            var marker = null;
+            var scriptElement = null;
+            var _markerinfowindow;
+            
+            window.addEventListener('message', (event) => {
+                if(event.data.APIKey) {
+                    var key = event.data.APIKey;
+                    scriptElement = document.createElement('script');
+                    scriptElement.src = 'https://maps.googleapis.com/maps/api/js?key='+key+'&libraries=places';
+                    document.head.appendChild(scriptElement);
+                }
+                
+                if(event.data.jsonBounds) {
+                    var bounds = JSON.parse(event.data.jsonBounds)
+                    scriptElement.onload = () => {
+                        initMap();
+                        _map.fitBounds(bounds);
+                    }
+                }
+
+                if(event.data.jsonMarkers) {
+                    var parsedMarkers = JSON.parse(event.data.jsonMarkers)
+                    scriptElement.onload = () => {
+                        parsedMarkers.foreach(function(marker) {
+                            _mapMarkers.push(new google.maps.Marker({
+                                map: _map,
+                                draggable: false,
+                                position: marker.position,
+                                data: null,
+                                icon: marker.icon
+                            }));
+                        });
+                    }
+                }
+            });
+            
+            function initMap() {
+                function initializeMap() {
+                    _markerinfowindow = new google.maps.InfoWindow({
+                        maxWidth: 400
+                    });
+
+                    var myOptions = {
+                        zoomControl: true,
+                        streetViewControl: true,
+                        mapTypeId: google.maps.MapTypeId.ROADMAP
+                    };
+                    _map = new google.maps.Map(document.getElementById('avails_map_NOC'), myOptions);
+                }
+                
+                initializeMap();
+            }
+
+            function addMarker(lat, lng, player, html, map) {
+
+                var icon = player.IsOnline ? "check_24x24.png" : "alert_24x24.png";
+
+                var marker = new google.maps.Marker( {
+                    map:_map,
+                    draggable: false,
+                    position: new google.maps.LatLng(lat, lng),
+                    data: html,
+                    icon: icon
+                });
+
+                google.maps.event.addListener(marker, 'click', function () {
+                    _markerinfowindow.setContent(marker.data);
+                    _markerinfowindow.open(map, marker);
+                });
+            }
+        </script>
+    </body>
+</html>
