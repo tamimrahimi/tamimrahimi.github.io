@@ -10,6 +10,7 @@
         </style>
     </head>
     <body>
+        <input id="pac-input" type="text" placeholder="Search Box">
         <div id="avails_map_new"></div>
         
         <script>
@@ -26,14 +27,17 @@
                     scriptElement.src = 'https://maps.googleapis.com/maps/api/js?key='+key+'&libraries=places';
                     document.head.appendChild(scriptElement);
                 }
+                
                 if(event.data.jsonModule) {
                     var module = JSON.parse(event.data.jsonModule)
                     initMap(module);
                 }
+                
                 if(event.data.jsonBounds) {
                     var bounds = JSON.parse(event.data.jsonBounds)
                     _map.fitBounds(bounds);
                 }
+                
                 if(event.data.jsonMapMarkers) {
                     var mapMarkers = parseRefJSON(event.data.jsonMapMarkers);
                     var markerIndex = mapMarkers.length - 1;
@@ -47,23 +51,32 @@
                     });
                     _mapMarkers.push(marker);
                 }
+                
                 if(event.data.jsonMarkerSelected) {
                     var selectedMarker = parseRefJSON(event.data.jsonMarkerSelected)
+                    var selectedMarkerIndex = _mapMarkers.findIndex(function(obj) {
+                        return obj.data === selectedMarker.data;
+                    });
+                    toggleMarker(_mapMarkers[selectedMarkerIndex]);
+                    _mapMarkers[selectedMarkerIndex].setZIndex(_maxZIndex);
+                    _maxZIndex++;
                     _map.panTo(selectedMarker.position);
                 }
+                
                 if(event.data.jsonMarkerIdFocused) {
                     var focusedMarkerId = JSON.parse(event.data.jsonMarkerIdFocused)
                     var focusedMarkerIndex = _mapMarkers.findIndex(function(obj) {
-                        return obj.data == focusedMarkerId;
+                        return obj.data === focusedMarkerId;
                     });
                     _mapMarkers[focusedMarkerIndex].setIcon('focused_map_face.png');
                     _mapMarkers[focusedMarkerIndex].setZIndex(_maxZIndex);
                     _maxZIndex++;
                 }
+                
                 if(event.data.jsonMarkerIdUnfocused) {
                     var unfocusedMarkerId = JSON.parse(event.data.jsonMarkerIdUnfocused)
                     var unfocusedMarkerIndex = _mapMarkers.findIndex(function(obj) {
-                        return obj.data == unfocusedMarkerId;
+                        return obj.data === unfocusedMarkerId;
                     });
                     _mapMarkers[unfocusedMarkerIndex].setIcon('default_map_face.png');
                     _mapMarkers[unfocusedMarkerIndex].setZIndex(_maxZIndex);
@@ -73,7 +86,6 @@
             
             function initMap(_module) {
                 var _markerinfowindow;
-                var _siteID;
                 var markers = [];
                 var circles = [];
                 var _latLng = _module.LatLng;
@@ -92,41 +104,27 @@
                             }
                         };
 
-                            var div = document.getElementById('avails_map_new');
-                            _map = new google.maps.Map(div, myOptions);
+                        var div = document.getElementById('avails_map_new');
+                        _map = new google.maps.Map(div, myOptions);
 
-                            var clearControlDiv = document.createElement('div');
-                            clearControlDiv.setAttribute("id", "clearSearch");
-                            var radiusControlDiv = document.createElement('div');
-                            radiusControlDiv.setAttribute("id", "radiusControl");
-                           /* var clearControl = new clearControlCreate(clearControlDiv);
-                            var radiusControl = new radiusControlCreate(radiusControlDiv);*/
-                            var searchInput = document.createElement('input');
-                            searchInput.index = 9;
-                            searchInput.id = "pac-input";
-                            searchInput.type = "text";
-                            searchInput.placeholder = "Search Box";
+                        var clearControlDiv = document.createElement('div');
+                        clearControlDiv.setAttribute("id", "clearSearch");
+                        var radiusControlDiv = document.createElement('div');
+                        radiusControlDiv.setAttribute("id", "radiusControl");
+                    
+                        clearControlDiv.index = 1;
+                        _map.controls[google.maps.ControlPosition.RIGHT_TOP].push(clearControlDiv);
+
+                        radiusControlDiv.index = 1;
+                        _map.controls[google.maps.ControlPosition.TOP_RIGHT].push(radiusControlDiv);
                         
-                            clearControlDiv.index = 1;
-                            _map.controls[google.maps.ControlPosition.RIGHT_TOP].push(clearControlDiv);
-
-                            radiusControlDiv.index = 1;
-                            _map.controls[google.maps.ControlPosition.TOP_RIGHT].push(radiusControlDiv);
-                            
-                            _markerinfowindow = new google.maps.InfoWindow({
-                                content: '',
-                                width: 300,
-                                height: 200
-                            });
-                            google.maps.event.addListener(_markerinfowindow, 'closeclick', function () {
-                                _siteID = null;
-                            });
-                            google.maps.event.addListener(_map, 'mousedown', function () {
-                                toggleMarker();
-                                $('#avails_map_list table tr').removeClass('hover');
-                            });
-                        }
+                        _markerinfowindow = new google.maps.InfoWindow({
+                            content: '',
+                            width: 300,
+                            height: 200
+                        });
                     }
+                }
                 function clearSearchMarkers(markers) {
                     if (!markers.empty) {
                         markers.forEach(function (marker) {
@@ -250,39 +248,32 @@
                         });
                     }
                 }
-                function createCustomElement(type, attributes, title, parent, text) {
-                    var element = document.createElement(type);
-                    for (var property in attributes) {
-                        if (attributes.hasOwnProperty(property)) {
-                            element.setAttribute(property, attributes[property]);
-                        }
-                    }
-                    if (title != '') element.title = title;
-                    if (!(text === '')) {
-                        if ((typeof text) == 'string') {
-                            element.innerHTML = text;
-                        } else {
-                            element.value = text;
-                        }
-                    }
-                    parent.appendChild(element);
-                    return element;
-                }
+
                 scriptElement.onload = () => {
                     initializeMap();
                     initAutocompleteSearch();
                 }
-                // const jsonMap = JSON.stringify(_map, refReplacer());
-                // window.parent.postMessage({jsonMap}, "*");
             }
 
-            function setZIndex (index) {
-                this.zIndex_ = index;
-                if (this.div_) {
-                    this.div_.style.zIndex = index;
-                }
-                google.maps.event.trigger(this, "zindex_changed");
+            function toggleMarker(marker) {
+                _mapMarkers.forEach(function(marker) {
+                    if(marker.getAnimation() != null) {
+                        marker.setAnimation(null);
+                    }
+                })
+                if (marker != undefined)
+                    marker.setAnimation(google.maps.Animation.BOUNCE);
             }
+            function indexOfMarker(myArray, data, property) {
+                for (var i = 0, len = myArray.length; i < len; i++) {
+                    if (myArray[i][property] === data) return i;
+                }
+                return -1;
+            }
+            function getMarker(id) {
+                return $.map(_mapMarkers, function (val) { if (val.data == id) return val; })[0];
+            }
+           
             function parseRefJSON(json) {
                 let objToPath = new Map();
                 let pathToObj = new Map();
