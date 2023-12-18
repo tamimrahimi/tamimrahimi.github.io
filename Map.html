@@ -1,299 +1,66 @@
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <style>
-            #avails_map_new
-            {
-                height: 99%;
-                width: 99%;
-                position: absolute;
+<head>
+    <style>
+        #zest-map
+        {
+            height: 99%;
+            width: 99%;
+            position: absolute;
+        }
+    </style>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBk5FKQA-_TLledOKe2SX4igTSvoLh-pb4&libraries=places"></script>
+</head>
+<body>
+<div id="zest-map"></div>
+
+<script>
+    var _viewModel = null;
+    var _map = null;
+    var faceOverlays = [];
+
+    window.addEventListener('message', (event) => {
+        if(event.data.jsonFaceOverlay) {
+            var parseFaceOverlay = JSON.parse(event.data.jsonFaceOverlay);
+            faceOverlays.push(parseFaceOverlay);
+        }
+    });
+
+    // function parseRefJSON(json) {
+    //     let objToPath = new Map();
+    //     let pathToObj = new Map();
+    //     let o = JSON.parse(json);
+    //     let traverse = (parent, field) => {
+    //         let obj = parent;
+    //         let path = '#REF:$';
+    //         if (field !== undefined) {
+    //             obj = parent[field];
+    //             path = objToPath.get(parent) + (Array.isArray(parent) ? `[${field}]` : `${field?'.'+field:''}`);
+    //         }
+    //         objToPath.set(obj, path);
+    //         pathToObj.set(path, obj);
+    //         let ref = pathToObj.get(obj);
+    //         if (ref) parent[field] = ref;
+    //         for (let f in obj) if (obj === Object(obj)) traverse(obj, f);
+    //     }
+    //     traverse(o);
+    //     return o;
+    // }
+
+    function initMap() {
+        var mapOptions = {
+            center: new google.maps.LatLng(39.8282, -88.5795),
+            zoom: 6,
+            mapTypeControl: true,
+            mapTypeControlOptions: {
+                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                position: google.maps.ControlPosition.TOP_LEFT
             }
-        </style>
-    </head>
-    <body>
-        <input id="pac-input" type="text" placeholder="Search Box">
-        <div id="avails_map_new"></div>
-        
-        <script>
-            var _map = null;
-            var _mapMarkers = [];
-            var marker = null;
-            var _maxZIndex = 2000;
-            var scriptElement = null;
-            
-            window.addEventListener('message', (event) => {
-                if(event.data.APIKey) {
-                    var key = event.data.APIKey;
-                    scriptElement = document.createElement('script');
-                    scriptElement.src = 'https://maps.googleapis.com/maps/api/js?key='+key+'&libraries=places';
-                    document.head.appendChild(scriptElement);
-                }
-                
-                if(event.data.jsonModule) {
-                    var module = JSON.parse(event.data.jsonModule)
-                    initMap(module);
-                }
-                
-                if(event.data.jsonBounds) {
-                    var bounds = JSON.parse(event.data.jsonBounds)
-                    _map.fitBounds(bounds);
-                }
-                
-                if(event.data.jsonMapMarkers) {
-                    var mapMarkers = parseRefJSON(event.data.jsonMapMarkers);
-                    var markerIndex = mapMarkers.length - 1;
-                    marker = new google.maps.Marker({
-                        map: _map,
-                        draggable: false,
-                        position: mapMarkers[markerIndex].position,
-                        data: mapMarkers[markerIndex].data,
-                        type: mapMarkers[markerIndex].type,
-                        icon: mapMarkers[markerIndex].icon
-                    });
-                    _mapMarkers.push(marker);
-                }
-                
-                if(event.data.jsonMarkerSelected) {
-                    var selectedMarker = parseRefJSON(event.data.jsonMarkerSelected)
-                    var selectedMarkerIndex = _mapMarkers.findIndex(function(obj) {
-                        return obj.data === selectedMarker.data;
-                    });
-                    toggleMarker(_mapMarkers[selectedMarkerIndex]);
-                    _mapMarkers[selectedMarkerIndex].setZIndex(_maxZIndex);
-                    _maxZIndex++;
-                    _map.panTo(selectedMarker.position);
-                }
-                
-                if(event.data.jsonMarkerIdFocused) {
-                    var focusedMarkerId = JSON.parse(event.data.jsonMarkerIdFocused)
-                    var focusedMarkerIndex = _mapMarkers.findIndex(function(obj) {
-                        return obj.data === focusedMarkerId;
-                    });
-                    _mapMarkers[focusedMarkerIndex].setIcon('focused_map_face.png');
-                    _mapMarkers[focusedMarkerIndex].setZIndex(_maxZIndex);
-                    _maxZIndex++;
-                }
-                
-                if(event.data.jsonMarkerIdUnfocused) {
-                    var unfocusedMarkerId = JSON.parse(event.data.jsonMarkerIdUnfocused)
-                    var unfocusedMarkerIndex = _mapMarkers.findIndex(function(obj) {
-                        return obj.data === unfocusedMarkerId;
-                    });
-                    _mapMarkers[unfocusedMarkerIndex].setIcon('default_map_face.png');
-                    _mapMarkers[unfocusedMarkerIndex].setZIndex(_maxZIndex);
-                    _maxZIndex++;
-                }
-            });
-            
-            function initMap(_module) {
-                var _markerinfowindow;
-                var markers = [];
-                var circles = [];
-                var _latLng = _module.LatLng;
-                
-                function initializeMap() {
-                    if (_map == null) {
-                        var myOptions = {
-                            zoom: 5,
-                            center: _latLng,
-                            zoomControl: true,
-                            streetViewControl: true,
-                            mapTypeId: google.maps.MapTypeId.ROADMAP,
-                            fullscreenControl: true,
-                            fullscreenControlOptions: {
-                                position: google.maps.ControlPosition.LEFT_TOP
-                            }
-                        };
+        };
+        _map = new google.maps.Map(document.getElementById("zest-map"), mapOptions);
+    }
 
-                        var div = document.getElementById('avails_map_new');
-                        _map = new google.maps.Map(div, myOptions);
-
-                        var clearControlDiv = document.createElement('div');
-                        clearControlDiv.setAttribute("id", "clearSearch");
-                        var radiusControlDiv = document.createElement('div');
-                        radiusControlDiv.setAttribute("id", "radiusControl");
-                    
-                        clearControlDiv.index = 1;
-                        _map.controls[google.maps.ControlPosition.RIGHT_TOP].push(clearControlDiv);
-
-                        radiusControlDiv.index = 1;
-                        _map.controls[google.maps.ControlPosition.TOP_RIGHT].push(radiusControlDiv);
-                        
-                        _markerinfowindow = new google.maps.InfoWindow({
-                            content: '',
-                            width: 300,
-                            height: 200
-                        });
-                    }
-                }
-                function clearSearchMarkers(markers) {
-                    if (!markers.empty) {
-                        markers.forEach(function (marker) {
-                            marker.setMap(null);
-                        });
-                        markers.length = 0;
-                    }
-                }
-                function clearCircles(circles) {
-                    if (!circles.empty) {
-                        circles.forEach(function (circle) {
-                            circle.setMap(null);
-                        });
-                        circles.length = 0;
-                    }
-                }
-                function initAutocompleteSearch() {
-                    // Create the search box and link it to the UI element.
-                    var input = document.getElementById('pac-input');
-                    var searchBox = new google.maps.places.SearchBox(input);
-                    _map.controls[google.maps.ControlPosition.TOP_RIGHT].push(input);
-                    // Bias the SearchBox results towards current map's viewport.
-                    _map.addListener('bounds_changed', function () {
-                        searchBox.setBounds(_map.getBounds());
-                    });
-                    // Listen for the event fired when the user selects a prediction and retrieve
-                    // more details for that place.
-                    searchBox.addListener('places_changed', function () {
-                        var places = searchBox.getPlaces();
-                        if (places.length == 0) {
-                            return;
-                        }
-                        // For each place, get the icon, name and location.
-                        var bounds = new google.maps.LatLngBounds();
-                        places.forEach(function (place) {
-                            if (!place.geometry) {
-                                console.log("Returned place contains no geometry");
-                                return;
-                            }
-                            var icon = {
-                                url: place.icon,
-                                size: new google.maps.Size(71, 71),
-                                origin: new google.maps.Point(0, 0),
-                                anchor: new google.maps.Point(17, 34),
-                                scaledSize: new google.maps.Size(25, 25)
-                            };
-                            // Create a marker for each place.
-                            markers.push(new google.maps.Marker({
-                                map: _map,
-                                icon: icon,
-                                title: place.name,
-                                position: place.geometry.location
-                            }));
-
-                            if (place.geometry.viewport) {
-                                // Only geocodes have viewport.
-                                bounds.union(place.geometry.viewport);
-                            } else {
-                                bounds.extend(place.geometry.location);
-                            }
-                        });
-                        _map.fitBounds(bounds);
-                        updateCircles(circles);
-                    });
-                }
-                // function clearControlCreate(clearDiv) {
-                //     var clearUI = createCustomElement('div', { id: 'clearUI' }, window.Resources.SiteStrings.ClickToClear, clearDiv, '');
-                //     var clearText = createCustomElement('div', { id: 'clearText' }, '', clearUI, window.Resources.SiteStrings.ClearMarkers);
-                //     // Setup the click event listeners.
-                //     clearUI.addEventListener('click', function () {
-                //         clearSearchMarkers(markers);
-                //         clearCircles(circles);
-                //     });
-                // }
-                // function radiusControlCreate(radiusDiv) {
-                //     var radiusUI = createCustomElement('div', { id: 'radiusControlDiv' }, window.Resources.SiteStrings.ClickForCircle, radiusDiv, '');
-                //     var radiusButton = createCustomElement('div', { id: 'radiusButton' }, '', radiusUI, '<<');
-                //     var radiusText = createCustomElement('div', { id: 'radiusText' }, '', radiusUI, '');
-                //     var incrementInput = createCustomElement('input', { id: 'radiusIncrement', type: 'number', step: 0.1, min: 0 }, '', radiusText, 0);
-                //     incrementInput.style.height = '20px';
-                //     var incrementInputText = createCustomElement('div', '', '', radiusText, '&ensp;km');
-                //     incrementInputText.style.display = 'inline-block';
-                //     radiusText.style.display = 'none';
-                //     // Setup the click event listeners.
-                //     radiusButton.addEventListener('click', function () {
-                //         toggleDisplay(radiusText);
-                //     });
-                //     incrementInput.addEventListener('change', function () {
-                //         updateCircles(circles);
-                //
-                //         //Change width of input box based on inputed number
-                //         var length = incrementInput.value.toString().replace('.', '').length;
-                //         incrementInput.style.width = 25 + (5 * length) + 'px';
-                //     });
-                //     function toggleDisplay(div) {
-                //         if (div.style.display == 'none') {
-                //             div.style.display = 'inline-block';
-                //             radiusButton.innerHTML = '>>';
-                //         } else {
-                //             div.style.display = 'none';
-                //             radiusButton.innerHTML = '<<';
-                //         }
-                //     }
-                // }
-                function updateCircles(circles){
-                    var incrementInput = document.getElementById('radiusIncrement');
-                    clearCircles(circles);
-                    if (!markers.empty) {
-                        markers.forEach(function (marker) {
-
-                            circles.push(new google.maps.Circle({
-                                strokeColor: '#00ff00',
-                                strokeOpacity: 0.8,
-                                strokeWeight: 2,
-                                fillColor: '#00ff00',
-                                fillOpacity: 0.35,
-                                map: _map,
-                                center: marker.getPosition(),
-                                radius: incrementInput.value * 1000
-                            }));
-                        });
-                    }
-                }
-
-                scriptElement.onload = () => {
-                    initializeMap();
-                    initAutocompleteSearch();
-                }
-            }
-
-            function toggleMarker(marker) {
-                _mapMarkers.forEach(function(marker) {
-                    if(marker.getAnimation() != null) {
-                        marker.setAnimation(null);
-                    }
-                })
-                if (marker != undefined)
-                    marker.setAnimation(google.maps.Animation.BOUNCE);
-            }
-            function indexOfMarker(myArray, data, property) {
-                for (var i = 0, len = myArray.length; i < len; i++) {
-                    if (myArray[i][property] === data) return i;
-                }
-                return -1;
-            }
-            function getMarker(id) {
-                return $.map(_mapMarkers, function (val) { if (val.data == id) return val; })[0];
-            }
-           
-            function parseRefJSON(json) {
-                let objToPath = new Map();
-                let pathToObj = new Map();
-                let o = JSON.parse(json);
-                let traverse = (parent, field) => {
-                    let obj = parent;
-                    let path = '#REF:$';
-                    if (field !== undefined) {
-                        obj = parent[field];
-                        path = objToPath.get(parent) + (Array.isArray(parent) ? `[${field}]` : `${field?'.'+field:''}`);
-                    }
-                    objToPath.set(obj, path);
-                    pathToObj.set(path, obj);
-                    let ref = pathToObj.get(obj);
-                    if (ref) parent[field] = ref;
-                    for (let f in obj) if (obj === Object(obj)) traverse(obj, f);
-                }
-                traverse(o);
-                return o;
-            }
-        </script>
-    </body>
+    initMap();
+</script>
+</body>
 </html>
