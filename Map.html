@@ -67,14 +67,6 @@ FaceOverlay.prototype = new google.maps.OverlayView();
 /** @constructor */
 function FaceOverlay(map, options) {
     var self = this;
-
-    var iframe = document.getElementById('zest_map_iframe');
-    if (iframe) {
-        var content = iframe.contentWindow;
-        var jsonFaceOverlay = JSON.stringify(options);
-        content.postMessage({jsonFaceOverlay}, '*');
-    }
-    else {
         // Initialize all properties.
         self.latLng = options.latLng;
         self.latLngBounds = options.latLngBounds;
@@ -582,7 +574,7 @@ function FaceOverlay(map, options) {
             self.div_ = null;
         });
     };
-}
+
 </script>
 </body>
 </html>
