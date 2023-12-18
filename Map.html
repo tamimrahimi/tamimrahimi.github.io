@@ -22,7 +22,8 @@
     window.addEventListener('message', (event) => {
         if(event.data.jsonFaceOverlay) {
             var parseFaceOverlay = JSON.parse(event.data.jsonFaceOverlay);
-            FaceOverlay(_map, parseFaceOverlay);
+            var faceOverlay = new FaceOverlay(_map, parseFaceOverlay);
+            faceOverlays.push(faceOverlay);
         }
     });
 
